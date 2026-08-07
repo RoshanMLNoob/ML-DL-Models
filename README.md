@@ -1,4 +1,4 @@
-# ML-DL-Models
+# Pre_Trained-ML-DL-Models
 While studying MIT 6.036 Introduction to Machine Learning, we were not allowed to use external DL Libraries like PyTorch.
 Instead we had to code everything using Numpy and sheer Math Skills, every back propagation algorithm ever written is not permanently engraved in my Mind.
 I appreciate this way of learning by MIT which taught me how to build ML DL models using basic Libraries and a lot of Math and I believe this should be done i every college and university because this eliminates the 
