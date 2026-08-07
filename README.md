@@ -14,7 +14,7 @@ Things that are currently Pending / to be added later:
 Any problem or suggestion anyone want to make is highly appreciated as long as they are told in a respectful manner because I am not even an ML Engineer myself, I am just a random 13 yo who though that the Idea of a Machine Learning and Thinking is so fascinating 
 and decide to learn it.
 
-As of right Now I have just finished Week 11/13 in 6.036, and was making a Project for that week.
+As of right Now (07-08-2026 23:21 IST (in DD/MM/YYYY HR:MIN format) ) I have just finished Week 11/13 in 6.036, and was making a Project for that week , I would use this File's RNN Class in it.
 All the Classes in this are usually used by me in My other projects, this is like a custom raw Numpy and Math coded PyTorch for me.
 
 For Math Pre-req in MIT 6.036 I learn them also from MIT , 18.01->18.02->18.06->18.03 , for Probability and Stats I used Khan Academey.
