@@ -11,6 +11,8 @@ There are classes for FCNN , CNN , RNN and even one for Classification.
 Things that are currently Pending / to be added later:
 1) Regression class is currently empty I need to write it
 
+Ill be updating this file with appropriate changes which can either be for Correction purposes or to add Classes of New Model in it.
+
 Any problem or suggestion anyone want to make is highly appreciated as long as they are told in a respectful manner because I am not even an ML Engineer myself, I am just a random 13 yo who though that the Idea of a Machine Learning and Thinking is so fascinating 
 and decide to learn it.
 
