@@ -5,6 +5,7 @@ import os
 import time
 from numpy import array
 import pickle
+import json
 
 #IMPORTING THIS FILE
 #   import sys
@@ -1301,6 +1302,219 @@ class S2S_RNN_m2m(object):
 
         return 1
 
-if __name__ == "__main__":
+class Content_Based_Recommendation(object):
+
+    def __init__(self, X,Y , default=0 , features=None,items=None):
+
+        self.X = np.array(X , ndmin=2)
+        self.Y = np.array(Y , ndmin=2)
+        self.default = default
+
+        self.items = np.array(items)
+        self.features = np.array(features)
+
+    def y_rated(self , user):
+
+        y_rated = self.Y[user, self.Y[user] != self.default]
+        return y_rated
+    
+    def X_rated(self , user):
+
+        x_rated = self.X[self.Y[user] != self.default]
+        return x_rated
+    
+    def w(self , user , lam=0):
+
+        XR , yR = self.X_rated(user=user) , self.y_rated(user=user)
+        W = np.linalg.inv(XR.T@XR + lam*(np.identity(XR.shape[1])))@(XR.T@yR)
+        return W
+
+    def y_hat(self , user , lam=0):
+
+        W = self.w(user=user , lam=lam)
+        predicted_ratings = self.X@W
+        return predicted_ratings
+
+    def reccommend(self , user , lam=0):
+
+        new_movies = self.Y[user]==self.default
+        preds = self.y_hat(user=user , lam=lam)[new_movies]
+        return preds
+
+    def Cost(self , w , user , lam=0):
+
+        XR , yR = self.X_rated(user=user) , self.y_rated(user=user)
+        prediction_result = XR@w
+        return np.sqrt((np.sum((prediction_result-yR)**2) + lam*(w.T@w)) / XR.shape[0])
+
+    def run_reccommendation(self , user , lam=0 , top_most=None , cost=False):
+        
+        items_unrated = self.items[self.Y[user] == self.default]
+        ratings_for_unrated_items = self.reccommend(user=user , lam=lam)
+
+        _cost_ = self.Cost(self.w(user=user , lam=lam) , user=user , lam=lam)
+
+        reccommend_items = dict(zip(items_unrated.tolist() , ratings_for_unrated_items.tolist()))
+        if top_most is None:
+            if cost:
+                return json.dumps(reccommend_items , indent=4) , _cost_
+            return json.dumps(reccommend_items , indent=4)
+        else:
+            if cost:
+                return json.dumps(sorted(reccommend_items.items(), key=lambda item: item[1], reverse=True)[:top_most] , indent=4) , _cost_
+            return json.dumps(sorted(reccommend_items.items(), key=lambda item: item[1], reverse=True)[:top_most] , indent=4)
+
+class Collaborative_Filtering(object):
+
+    def __init__(self , Y , k , movie_list):
+
+        self.Y = np.array(Y , ndmin=2)
+        self.Y_init = np.array(Y , ndmin=2)
+
+        self.m , self.n = self.Y.shape # m=users , n=items
+        self.k = k #Latent Factors
+
+        self.U = np.random.randn(self.m , self.k)*0.01
+        self.V = np.random.randn(self.n , self.k)*0.01
+
+        self.movie_list = movie_list
+
+    def y_hat(self, U , V , i , j):
+
+        return U[i].T@V[j]
+
+    def rated(self , Y):
+
+        return np.argwhere(Y != 0)
+
+    def J(self, U,V, lam=0):
+
+        rated = self.rated(Y=self.Y)
+
+        loss = 0
+        for i,j in rated:
+            loss += (self.y_hat(U,V,i,j) - self.Y[i,j])**2
+
+        regulizarization = lam*( np.sum(np.linalg.norm(U , axis=1)**2) + np.sum(np.linalg.norm(V , axis=1)**2) )
+
+        return loss + regulizarization
+
+    def optimize_U(self , U,V ,lam=0):
+
+        for i in range(self.m):
+
+            rated_indd = np.where(self.Y[i] > 0)[0]
+
+            if len(rated_indd) == 0:
+                continue
+
+            Vr = V[rated_indd]
+            yr = self.Y[i, rated_indd]
+
+            A = Vr.T @ Vr + lam*np.eye(self.k)
+            b = Vr.T @ yr
+
+            U[i] = np.linalg.solve(A , b)
+
+    def optimize_V(self , U,V, lam=0):
+
+        for j in range(self.n):
+
+            rated_users = np.where(self.Y[:, j] > 0)[0]
+
+            if len(rated_users) == 0:
+                continue
+
+            Ur = U[rated_users]
+            yr = self.Y[rated_users, j]
+
+            A = Ur.T @ Ur + lam*np.eye(self.k)
+            b = Ur.T @ yr
+
+            V[j] = np.linalg.solve(A, b)
+
+    def Train(self, lam=0, epoch=10 , interval=1):
+
+        self.lam = lam
+        print(f"Lambda = {lam}")
+
+        for ep in range(epoch):
+
+            self.optimize_U(self.U , self.V , lam=lam)
+            self.optimize_V(self.U , self.V , lam=lam)
+
+            if ep % interval == 0:
+                print(f"Epoch {ep+1} : {self.J(self.U , self.V , lam=lam) / np.count_nonzero(self.Y)}")
+
+        return 0
+
+    def Final_Matrix(self):
+
+        return self.U@self.V.T , self.J(self.U , self.V , lam=self.lam)
+
+    def Show_Result(self , user , top_most=10):
+
+        Y_hat , Cost = self.Final_Matrix()
+
+
+        print(f"Our model has created a final Matrix")
+        print(f"It's final cost is {Cost / np.count_nonzero(self.Y)}")
+        print(f"For user {user} our model recommends:")
+
+        Y_hat[user][self.Y_init[user] != 0] = 0
+
+        recommendation = np.argpartition( Y_hat[user] , -top_most )[-top_most:]
+        recommendation_score = np.clip(np.partition( Y_hat[user] , -top_most )[-top_most:] , 1.0,5.0)
+
+        show = dict({})
+
+        for r,s in zip(recommendation[::-1],recommendation_score[::-1]):
+
+            show[self.movie_list[r]] = s
+
+        print(f"{json.dumps(show , indent=4)}")
+
+        return 0
+
+    def Show_Result_NewUser(self, new_user_ratings, top_most=10):
+
+        new_user_ratings = np.array(new_user_ratings, ndmin=1)
+        rated_indd = np.where(new_user_ratings > 0)[0]
+
+        Vr = self.V[rated_indd]
+        yr = new_user_ratings[rated_indd]
+
+        A = Vr.T @ Vr + self.lam * np.eye(self.k)
+        b = Vr.T @ yr
+        u_new = np.linalg.solve(A, b)
+
+        y_hat_new = u_new @ self.V.T
+
+        print(f"Our model has computed the latent vector for the new user")
+        print(f"For the new user our model recommends:")
+
+        y_hat_new[new_user_ratings != 0] = 0
+
+        recommendation = np.argpartition(y_hat_new, -top_most)[-top_most:]
+        recommendation_score = np.clip(np.partition(y_hat_new, -top_most)[-top_most:], 1.0, 5.0)
+
+        show = dict({})
+
+        for r,s in zip(recommendation[::-1],recommendation_score[::-1]):
+
+            show[self.movie_list[r]] = s
+
+        print(f"{json.dumps(show , indent=4)}")
+
+        return 0
+
+    def Run(self , user , top_most=10):
+
+        if type(user) == int:
+            self.Show_Result(user=user , top_most=top_most)
+        else:
+            self.Show_Result_NewUser(new_user_ratings=user , top_most=top_most)
+
+if __name__ == "__main__": 
 
     pass
